@@ -5,4 +5,4 @@ if now.time() > datetime.time(13, 30):
     morning_time_entries()
 
 if now.time() > datetime.time(18, 00):
-    afternoon_times()
+    afternoon_time_entries()
