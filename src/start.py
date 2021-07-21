@@ -34,7 +34,6 @@ def by_times(date1, date2, time1, time2):
     end_time = f'{date2} {time2}'
     return time_entries_in_range(start_time, end_time)
 
-
 def morning_times(date=None):
     if not date:
         date = dt.strftime(dt.now(), '%m-%d-%y')
@@ -46,6 +45,15 @@ def afternoon_times(date=None):
         date = dt.strftime(dt.now(), '%m-%d-%y')
     return by_times(date, date, '1:30 pm', '6:00 pm')
 
+def evening_times(date=None):
+    if not date:
+        date = dt.strftime(dt.now(), '%m-%d-%y')
+    return by_times(date, date, '6:00 pm', '10:00 pm')
+
+def full_day_times(date=None):
+    if not date:
+        date = dt.strftime(dt.now() - datetime.timedelta(days=1), '%m-%d-%y')
+    return by_times(date, date, '12:00 am', '11:59 pm')
 
 def get_projects():
     uri_projects = f'https://api.track.toggl.com/api/v8/workspaces/{workspace_id}/projects'
@@ -53,7 +61,6 @@ def get_projects():
         return requests.get(uri_projects, auth=auth).json()
     except(ValueError, JSONDecodeError):
         return {}
-
 
 def proj_id_from_name(proj_name):
     project_list = get_projects()
@@ -117,7 +124,7 @@ def time_entries_to_json(date, get_method):
         return_dict[proj_name] = time_entry_list_from_proj_id(
             proj_id, time_entries_list)
 
-    write_file = Path(__file__).parent / f'data/{file_name}'
+    write_file = Path(__file__).parent / f'../data/{file_name}'
     json.dump(return_dict, write_file.open('w+'))
 
     return return_dict
@@ -135,7 +142,7 @@ def time_entries_to_json(date1, date2, time1, time2):
         return_dict[proj_name] = time_entry_list_from_proj_id(
             proj_id, time_entries_list)
 
-    write_file = Path(__file__).parent / f'data/{file_name}.json'.replace(':', '').replace(' ', '_')
+    write_file = Path(__file__).parent / f'../data/{file_name}.json'.replace(':', '').replace(' ', '_')
     json.dump(return_dict, write_file.open('w+'))
 
     return return_dict
