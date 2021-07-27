@@ -12,3 +12,5 @@ if now.time() > datetime.time(22, 00):
 
 if now.time() > datetime.time(3, 00) and now.time() < datetime.time(6, 00):
     full_day_time_entries()
+
+weekly_time_entries()

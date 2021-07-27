@@ -2,3 +2,6 @@ secrets.py
 data/
 *.pyc
 .metals
+.eggs
+dist/
+togglmethods.egg-info

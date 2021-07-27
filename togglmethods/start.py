@@ -3,6 +3,8 @@ from types import *
 from multipledispatch.core import dispatch
 import requests
 from datetime import datetime as dt
+from datetime import date, timedelta
+from dateutil import parser
 import datetime
 from arrow import Arrow
 from pathlib import Path
@@ -28,6 +30,20 @@ def time_entries_in_range(start_time, end_time):
     except(ValueError, JSONDecodeError):
         return {}
 
+def get_date_change(day: str = None, start_day: str = 'Wed'):
+    if not day:
+        day = date.today()
+    else:
+        day = parser.parse(day)
+    
+    start_day = parser.parse(start_day)
+
+    start_day_offset = (day.weekday() - start_day) % 7
+    end_day_offset = -(day.weekday() - (start_day-1)) % 7
+    start_day_date = day - timedelta(days=start_day_offset)
+    end_day_date = day + timedelta(days=end_day_offset)
+
+    return f'{start_day_date.month}-{start_day_date.day}-{start_day_date.year}', f'{end_day_date.month}-{end_day_date.day}-{end_day_date.year}'
 
 def by_times(date1, date2, time1, time2):
     start_time = f'{date1} {time1}'
@@ -54,6 +70,14 @@ def full_day_times(date=None):
     if not date:
         date = dt.strftime(dt.now() - datetime.timedelta(days=1), '%m-%d-%y')
     return by_times(date, date, '12:00 am', '11:59 pm')
+
+def weekly_times(date: str =None, start_day: str = None):
+    if not date:
+        date = dt.strftime(dt.now(), '%m-%d-%y')
+    
+    date1, date2 = get_date_change(date, start_day)
+    
+    return by_times(date1, date2, '12:00 am', '11:59 pm')
 
 def get_projects():
     uri_projects = f'https://api.track.toggl.com/api/v8/workspaces/{workspace_id}/projects'
