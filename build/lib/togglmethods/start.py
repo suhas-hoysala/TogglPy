@@ -1,8 +1,9 @@
+from typing import List
 from .secrets import api_token
 from types import *
 from multipledispatch.core import dispatch
 import requests
-from datetime import datetime as dt
+from datetime import datetime as dt, timezone
 from datetime import date, timedelta
 from dateutil import parser
 import datetime
@@ -10,8 +11,6 @@ from arrow import Arrow
 from pathlib import Path
 import json
 from json.decoder import JSONDecodeError
-import os
-import errno
 
 auth = (api_token, 'api_token')
 
@@ -19,6 +18,40 @@ workspace_id = requests.get(
     'https://api.track.toggl.com/api/v8/workspaces', auth=auth).json()[0]['id']
 
 
+def get_project_id_from_name(name: str = 'General', wid: int = workspace_id):
+    projects = get_projects(wid)
+    project_list = [rec for rec in projects if rec['name'] == name]
+    return project_list[0]['id'] if project_list else None
+
+
+def create_time_entry(description: str, start: datetime, duration: int, wid: int = workspace_id,
+                      pid: int = None, tags: List[str] = []):
+    fmt_string = '%m-%d-%y %I:%M %p'
+    iso1 = Arrow.strptime(dt.strftime(start, fmt_string), fmt_string,
+                          tzinfo='America/New_York').isoformat()
+    task = {
+        'time_entry': {
+            'description': description,
+            'wid': wid,
+            'start': iso1,
+            'duration': duration,
+            'created_with': 'togglmethods',
+            'tags': tags
+        }
+    }
+    if pid != None:
+        task['pid'] = pid
+
+    print(json.dumps(task, indent=4))
+
+    uri = 'https://api.track.toggl.com/api/v8/time_entries'
+    try:
+        return requests.post(uri, auth=auth, json=task)
+    except(ValueError, JSONDecodeError):
+        return {}
+
+
+@dispatch(str, str)
 def time_entries_in_range(start_time, end_time):
     iso1 = Arrow.strptime(start_time, '%m-%d-%y %I:%M %p',
                           tzinfo='America/New_York').isoformat()
@@ -31,6 +64,12 @@ def time_entries_in_range(start_time, end_time):
         return requests.get(uri, auth=auth).json()
     except(ValueError, JSONDecodeError):
         return {}
+
+
+@dispatch(dt, dt)
+def time_entries_in_range(start_time, end_time):
+    return time_entries_in_range(dt.strftime(start_time, '%m-%d-%y %I:%M %p'),
+                                 dt.strftime(end_time, '%m-%d-%y %I:%M %p'))
 
 
 def get_date_change(day: str = None, start_day: str = 'Wed'):
@@ -90,8 +129,8 @@ def weekly_times(date: str = None, start_day: str = None):
     return by_times(date1, date2, '12:00 am', '11:59 pm')
 
 
-def get_projects():
-    uri_projects = f'https://api.track.toggl.com/api/v8/workspaces/{workspace_id}/projects'
+def get_projects(wid: int = workspace_id):
+    uri_projects = f'https://api.track.toggl.com/api/v8/workspaces/{wid}/projects'
     try:
         return requests.get(uri_projects, auth=auth).json()
     except(ValueError, JSONDecodeError):
