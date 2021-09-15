@@ -11,11 +11,66 @@ from arrow import Arrow
 from pathlib import Path
 import json
 from json.decoder import JSONDecodeError
+import tenacity
+from typing import Union
+from requests.models import Response
+
+
+class TogglWrapper:
+    def __init__(self, auth):
+        self.auth=auth
+    class ErrException(Exception):
+        pass
+    @tenacity.retry(wait=tenacity.wait_fixed(15),
+                    stop=tenacity.stop_after_attempt(8))
+    def delete(
+        self, path: str, raw: bool = False, **kwargs
+    ) -> Union[list, dict, Response]:
+        """makes a put request to the API"""
+        request = requests.delete(path, auth=self.auth, **kwargs).json()
+        if 'err' in request:
+            if self.delete.retry.statistics['attempt_number'] == 8:
+                return request
+            raise TogglWrapper.ErrException()
+        return request
+
+    @tenacity.retry(wait=tenacity.wait_fixed(15),
+                    stop=tenacity.stop_after_attempt(8))
+    def get(self, path: str, raw: bool = False, **kwargs
+            ) -> Union[list, dict, Response]:
+        request = requests.get(path, auth=self.auth, **kwargs).json()
+        if 'err' in request:
+            if self.get.retry.statistics['attempt_number'] == 8:
+                return request
+            raise TogglWrapper.ErrException()
+        return request
+
+    @tenacity.retry(wait=tenacity.wait_fixed(15),
+                    stop=tenacity.stop_after_attempt(8))
+    def post(self, path: str, **kwargs
+             ) -> Union[list, dict, Response]:
+        request = requests.post(path, auth=self.auth, **kwargs).json()
+        if 'err' in request:
+            if self.post.retry.statistics['attempt_number'] == 8:
+                return request
+            raise TogglWrapper.ErrException()
+        return request
+
+    @tenacity.retry(wait=tenacity.wait_fixed(15),
+                    stop=tenacity.stop_after_attempt(8))
+    def put(self, path: str, **kwargs
+            ) -> Union[list, dict, Response]:
+        request = requests.put(path, auth=self.auth, **kwargs).json()
+        if 'err' in request:
+            if self.put.retry.statistics['attempt_number'] == 8:
+                return request
+            raise TogglWrapper.ErrException()
+        return request
 
 auth = (api_token, 'api_token')
-
-workspace_id = requests.get(
-    'https://api.track.toggl.com/api/v8/workspaces', auth=auth).json()[0]['id']
+toggl_wrapper = TogglWrapper(auth)
+workspace_id = toggl_wrapper.get(
+    'https://api.track.toggl.com/api/v8/workspaces')[0]['id']
 
 
 def get_project_id_from_name(name: str = 'General', wid: int = workspace_id):
@@ -45,10 +100,7 @@ def create_time_entry(description: str, start: datetime, duration: int, wid: int
     print(json.dumps(task, indent=4))
 
     uri = 'https://api.track.toggl.com/api/v8/time_entries'
-    try:
-        return requests.post(uri, auth=auth, json=task)
-    except(ValueError, JSONDecodeError):
-        return {}
+    return toggl_wrapper.post(uri, json=task)
 
 
 @dispatch(str, str)
@@ -60,10 +112,7 @@ def time_entries_in_range(start_time, end_time):
 
     uri = f'https://api.track.toggl.com/api/v8/time_entries?start_date={iso1}&end_date={iso2}'
 
-    try:
-        return requests.get(uri, auth=auth).json()
-    except(ValueError, JSONDecodeError):
-        return {}
+    return toggl_wrapper.get(uri)
 
 
 @dispatch(dt, dt)
@@ -131,10 +180,7 @@ def weekly_times(date: str = None, start_day: str = None):
 
 def get_projects(wid: int = workspace_id):
     uri_projects = f'https://api.track.toggl.com/api/v8/workspaces/{wid}/projects'
-    try:
-        return requests.get(uri_projects, auth=auth).json()
-    except(ValueError, JSONDecodeError):
-        return {}
+    return toggl_wrapper.get(uri_projects)
 
 
 def proj_id_from_name(proj_name):
