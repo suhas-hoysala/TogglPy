@@ -1,8 +1,9 @@
+from typing import List
 from .secrets import api_token
 from types import *
 from multipledispatch.core import dispatch
 import requests
-from datetime import datetime as dt
+from datetime import datetime as dt, timezone
 from datetime import date, timedelta
 from dateutil import parser
 import datetime
@@ -10,15 +11,99 @@ from arrow import Arrow
 from pathlib import Path
 import json
 from json.decoder import JSONDecodeError
-import os
-import errno
+import tenacity
+from typing import Union
+from requests.models import Response
+
+
+class TogglWrapper:
+    def __init__(self, auth):
+        self.auth=auth
+    class ErrException(Exception):
+        pass
+    @tenacity.retry(wait=tenacity.wait_fixed(15),
+                    stop=tenacity.stop_after_attempt(8))
+    def delete(
+        self, path: str, raw: bool = False, **kwargs
+    ) -> Union[list, dict, Response]:
+        """makes a put request to the API"""
+        request = requests.delete(path, auth=self.auth, **kwargs).json()
+        if 'err' in request:
+            if self.delete.retry.statistics['attempt_number'] == 8:
+                return request
+            raise TogglWrapper.ErrException()
+        return request
+
+    @tenacity.retry(wait=tenacity.wait_fixed(15),
+                    stop=tenacity.stop_after_attempt(8))
+    def get(self, path: str, raw: bool = False, **kwargs
+            ) -> Union[list, dict, Response]:
+        request = requests.get(path, auth=self.auth, **kwargs).json()
+        if 'err' in request:
+            if self.get.retry.statistics['attempt_number'] == 8:
+                return request
+            raise TogglWrapper.ErrException()
+        return request
+
+    @tenacity.retry(wait=tenacity.wait_fixed(15),
+                    stop=tenacity.stop_after_attempt(8))
+    def post(self, path: str, **kwargs
+             ) -> Union[list, dict, Response]:
+        request = requests.post(path, auth=self.auth, **kwargs).json()
+        if 'err' in request:
+            if self.post.retry.statistics['attempt_number'] == 8:
+                return request
+            raise TogglWrapper.ErrException()
+        return request
+
+    @tenacity.retry(wait=tenacity.wait_fixed(15),
+                    stop=tenacity.stop_after_attempt(8))
+    def put(self, path: str, **kwargs
+            ) -> Union[list, dict, Response]:
+        request = requests.put(path, auth=self.auth, **kwargs).json()
+        if 'err' in request:
+            if self.put.retry.statistics['attempt_number'] == 8:
+                return request
+            raise TogglWrapper.ErrException()
+        return request
 
 auth = (api_token, 'api_token')
+toggl_wrapper = TogglWrapper(auth)
+workspace_id = toggl_wrapper.get(
+    'https://api.track.toggl.com/api/v8/workspaces')[0]['id']
 
-workspace_id = requests.get(
-    'https://api.track.toggl.com/api/v8/workspaces', auth=auth).json()[0]['id']
+
+def get_project_id_from_name(name: str = 'General', wid: int = workspace_id):
+    projects = get_projects(wid)
+    project_list = [rec for rec in projects if rec['name'] == name]
+    return project_list[0]['id'] if project_list else None
 
 
+def create_time_entry(description: str, start: datetime, duration: int, wid: int = workspace_id,
+                      pid: int = None, tags: List[str] = []):
+    fmt_string = '%m-%d-%y %I:%M %p'
+    iso1 = Arrow.strptime(dt.strftime(start, fmt_string), fmt_string,
+                          tzinfo='America/New_York').isoformat()
+    task = {
+        'time_entry': {
+            'description': description,
+            'wid': wid,
+            'start': iso1,
+            'duration': duration,
+            'created_with': 'togglmethods',
+            'tags': tags
+        }
+    }
+    if pid != None:
+        task['pid'] = pid
+
+    print(json.dumps(task, indent=4))
+
+    uri = 'https://api.track.toggl.com/api/v8/time_entries'
+    return toggl_wrapper.post(uri, json=task)
+
+
+@dispatch(str, str)
 def time_entries_in_range(start_time, end_time):
     iso1 = Arrow.strptime(start_time, '%m-%d-%y %I:%M %p',
                           tzinfo='America/New_York').isoformat()
@@ -27,10 +112,13 @@ def time_entries_in_range(start_time, end_time):
 
     uri = f'https://api.track.toggl.com/api/v8/time_entries?start_date={iso1}&end_date={iso2}'
 
-    try:
-        return requests.get(uri, auth=auth).json()
-    except(ValueError, JSONDecodeError):
-        return {}
+    return toggl_wrapper.get(uri)
+
+
+@dispatch(dt, dt)
+def time_entries_in_range(start_time, end_time):
+    return time_entries_in_range(dt.strftime(start_time, '%m-%d-%y %I:%M %p'),
+                                 dt.strftime(end_time, '%m-%d-%y %I:%M %p'))
 
 
 def get_date_change(day: str = None, start_day: str = 'Wed'):
@@ -90,12 +178,9 @@ def weekly_times(date: str = None, start_day: str = None):
     return by_times(date1, date2, '12:00 am', '11:59 pm')
 
 
-def get_projects():
-    uri_projects = f'https://api.track.toggl.com/api/v8/workspaces/{workspace_id}/projects'
-    try:
-        return requests.get(uri_projects, auth=auth).json()
-    except(ValueError, JSONDecodeError):
-        return {}
+def get_projects(wid: int = workspace_id):
+    uri_projects = f'https://api.track.toggl.com/api/v8/workspaces/{wid}/projects'
+    return toggl_wrapper.get(uri_projects)
 
 
 def proj_id_from_name(proj_name):
