@@ -24,14 +24,12 @@ class TogglWrapper:
         pass
     def get_new_session():
         session = requests.Session()
-        retry = Retry(connect=8, backoff_factor=0.5)
+        retry = Retry(connect=3, backoff_factor=0.5)
         adapter = HTTPAdapter(max_retries=retry)
         session.mount('http://', adapter)
         session.mount('https://', adapter)
         return session
 
-    @tenacity.retry(wait=tenacity.wait_fixed(15),
-                    stop=tenacity.stop_after_attempt(8))
     def delete(
         self, path: str, raw: bool = False, **kwargs
     ) -> Union[list, dict, Response]:
@@ -44,8 +42,6 @@ class TogglWrapper:
             raise TogglWrapper.ErrException()
         return request
 
-    @tenacity.retry(wait=tenacity.wait_fixed(15),
-                    stop=tenacity.stop_after_attempt(8))
     def get(self, path: str, raw: bool = False, **kwargs
             ) -> Union[list, dict, Response]:
         s = TogglWrapper.get_new_session()
@@ -56,8 +52,6 @@ class TogglWrapper:
             raise TogglWrapper.ErrException()
         return request
 
-    @tenacity.retry(wait=tenacity.wait_fixed(15),
-                    stop=tenacity.stop_after_attempt(8))
     def post(self, path: str, **kwargs
              ) -> Union[list, dict, Response]:
         s = TogglWrapper.get_new_session()
@@ -68,8 +62,6 @@ class TogglWrapper:
             raise TogglWrapper.ErrException()
         return request
 
-    @tenacity.retry(wait=tenacity.wait_fixed(15),
-                    stop=tenacity.stop_after_attempt(8))
     def put(self, path: str, **kwargs
             ) -> Union[list, dict, Response]:
         s = TogglWrapper.get_new_session()
