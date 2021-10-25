@@ -10,10 +10,11 @@ import datetime
 from arrow import Arrow
 from pathlib import Path
 import json
-from json.decoder import JSONDecodeError
 import tenacity
 from typing import Union
 from requests.models import Response
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 
 class TogglWrapper:
@@ -21,13 +22,22 @@ class TogglWrapper:
         self.auth=auth
     class ErrException(Exception):
         pass
+    def get_new_session():
+        session = requests.Session()
+        retry = Retry(connect=8, backoff_factor=0.5)
+        adapter = HTTPAdapter(max_retries=retry)
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
+        return session
+
     @tenacity.retry(wait=tenacity.wait_fixed(15),
                     stop=tenacity.stop_after_attempt(8))
     def delete(
         self, path: str, raw: bool = False, **kwargs
     ) -> Union[list, dict, Response]:
         """makes a put request to the API"""
-        request = requests.delete(path, auth=self.auth, **kwargs).json()
+        s = TogglWrapper.get_new_session()
+        request = s.delete(path, auth=self.auth, **kwargs).json()
         if 'err' in request:
             if self.delete.retry.statistics['attempt_number'] == 8:
                 return request
@@ -38,7 +48,8 @@ class TogglWrapper:
                     stop=tenacity.stop_after_attempt(8))
     def get(self, path: str, raw: bool = False, **kwargs
             ) -> Union[list, dict, Response]:
-        request = requests.get(path, auth=self.auth, **kwargs).json()
+        s = TogglWrapper.get_new_session()
+        request = s.get(path, auth=self.auth, **kwargs).json()
         if 'err' in request:
             if self.get.retry.statistics['attempt_number'] == 8:
                 return request
@@ -49,7 +60,8 @@ class TogglWrapper:
                     stop=tenacity.stop_after_attempt(8))
     def post(self, path: str, **kwargs
              ) -> Union[list, dict, Response]:
-        request = requests.post(path, auth=self.auth, **kwargs).json()
+        s = TogglWrapper.get_new_session()
+        request = s.post(path, auth=self.auth, **kwargs).json()
         if 'err' in request:
             if self.post.retry.statistics['attempt_number'] == 8:
                 return request
@@ -60,7 +72,8 @@ class TogglWrapper:
                     stop=tenacity.stop_after_attempt(8))
     def put(self, path: str, **kwargs
             ) -> Union[list, dict, Response]:
-        request = requests.put(path, auth=self.auth, **kwargs).json()
+        s = TogglWrapper.get_new_session()
+        request = s.put(path, auth=self.auth, **kwargs).json()
         if 'err' in request:
             if self.put.retry.statistics['attempt_number'] == 8:
                 return request
