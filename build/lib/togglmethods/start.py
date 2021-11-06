@@ -24,7 +24,7 @@ class TogglWrapper:
         pass
     def get_new_session():
         session = requests.Session()
-        retry = Retry(connect=3, backoff_factor=0.5)
+        retry = Retry(total=100, connect=100, backoff_factor=0.5)
         adapter = HTTPAdapter(max_retries=retry)
         session.mount('http://', adapter)
         session.mount('https://', adapter)
@@ -36,40 +36,24 @@ class TogglWrapper:
         """makes a put request to the API"""
         s = TogglWrapper.get_new_session()
         request = s.delete(path, auth=self.auth, **kwargs).json()
-        if 'err' in request:
-            if self.delete.retry.statistics['attempt_number'] == 8:
-                return request
-            raise TogglWrapper.ErrException()
         return request
 
     def get(self, path: str, raw: bool = False, **kwargs
             ) -> Union[list, dict, Response]:
         s = TogglWrapper.get_new_session()
         request = s.get(path, auth=self.auth, **kwargs).json()
-        if 'err' in request:
-            if self.get.retry.statistics['attempt_number'] == 8:
-                return request
-            raise TogglWrapper.ErrException()
         return request
 
     def post(self, path: str, **kwargs
              ) -> Union[list, dict, Response]:
         s = TogglWrapper.get_new_session()
         request = s.post(path, auth=self.auth, **kwargs).json()
-        if 'err' in request:
-            if self.post.retry.statistics['attempt_number'] == 8:
-                return request
-            raise TogglWrapper.ErrException()
         return request
 
     def put(self, path: str, **kwargs
             ) -> Union[list, dict, Response]:
         s = TogglWrapper.get_new_session()
         request = s.put(path, auth=self.auth, **kwargs).json()
-        if 'err' in request:
-            if self.put.retry.statistics['attempt_number'] == 8:
-                return request
-            raise TogglWrapper.ErrException()
         return request
 
 auth = (api_token, 'api_token')
