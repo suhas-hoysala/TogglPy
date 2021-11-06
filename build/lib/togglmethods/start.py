@@ -20,8 +20,10 @@ from requests.packages.urllib3.util.retry import Retry
 class TogglWrapper:
     def __init__(self, auth):
         self.auth=auth
-    class ErrException(Exception):
-        pass
+    WAIT_FIXED=5
+    MAX_RETRIES=10
+    @tenacity.retry(wait=tenacity.wait_fixed(WAIT_FIXED),
+                    stop=tenacity.stop_after_attempt(MAX_RETRIES))
     def get_new_session():
         session = requests.Session()
         retry = Retry(total=100, connect=100, backoff_factor=0.5)
@@ -29,7 +31,8 @@ class TogglWrapper:
         session.mount('http://', adapter)
         session.mount('https://', adapter)
         return session
-
+    @tenacity.retry(wait=tenacity.wait_fixed(WAIT_FIXED),
+                    stop=tenacity.stop_after_attempt(MAX_RETRIES))
     def delete(
         self, path: str, raw: bool = False, **kwargs
     ) -> Union[list, dict, Response]:
@@ -38,18 +41,24 @@ class TogglWrapper:
         request = s.delete(path, auth=self.auth, **kwargs).json()
         return request
 
+    @tenacity.retry(wait=tenacity.wait_fixed(WAIT_FIXED),
+                    stop=tenacity.stop_after_attempt(MAX_RETRIES))
     def get(self, path: str, raw: bool = False, **kwargs
             ) -> Union[list, dict, Response]:
         s = TogglWrapper.get_new_session()
         request = s.get(path, auth=self.auth, **kwargs).json()
         return request
 
+    @tenacity.retry(wait=tenacity.wait_fixed(WAIT_FIXED),
+                    stop=tenacity.stop_after_attempt(MAX_RETRIES))
     def post(self, path: str, **kwargs
              ) -> Union[list, dict, Response]:
         s = TogglWrapper.get_new_session()
         request = s.post(path, auth=self.auth, **kwargs).json()
         return request
 
+    @tenacity.retry(wait=tenacity.wait_fixed(WAIT_FIXED),
+                    stop=tenacity.stop_after_attempt(MAX_RETRIES))
     def put(self, path: str, **kwargs
             ) -> Union[list, dict, Response]:
         s = TogglWrapper.get_new_session()
