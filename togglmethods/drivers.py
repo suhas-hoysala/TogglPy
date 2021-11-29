@@ -1,4 +1,4 @@
-from start import *
+from .start import *
 
 def morning_time_entries(date: str=None):
     if not date:

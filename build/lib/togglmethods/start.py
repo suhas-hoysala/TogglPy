@@ -103,9 +103,9 @@ def create_time_entry(description: str, start: datetime, duration: int, wid: int
 
 @dispatch(str, str)
 def time_entries_in_range(start_time, end_time):
-    iso1 = Arrow.strptime(start_time, '%m-%d-%y %I:%M %p',
+    iso1 = Arrow.fromdatetime(parser.parse(start_time),
                           tzinfo='America/New_York').isoformat()
-    iso2 = Arrow.strptime(end_time, '%m-%d-%y %I:%M %p',
+    iso2 = Arrow.strptime(parser.parse(end_time),
                           tzinfo='America/New_York').isoformat()
 
     uri = f'https://api.track.toggl.com/api/v8/time_entries?start_date={iso1}&end_date={iso2}'
