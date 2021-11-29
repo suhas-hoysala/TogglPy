@@ -80,7 +80,7 @@ def get_project_id_from_name(name: str = 'General', wid: int = workspace_id):
 def create_time_entry(description: str, start: datetime, duration: int, wid: int = workspace_id,
                       pid: int = None, tags: List[str] = []):
     fmt_string = '%m-%d-%y %I:%M %p'
-    iso1 = Arrow.strptime(dt.strftime(start, fmt_string), fmt_string,
+    iso1 = Arrow.fromdatetime(start,
                           tzinfo='America/New_York').isoformat()
     task = {
         'time_entry': {
@@ -105,7 +105,7 @@ def create_time_entry(description: str, start: datetime, duration: int, wid: int
 def time_entries_in_range(start_time, end_time):
     iso1 = Arrow.fromdatetime(parser.parse(start_time),
                           tzinfo='America/New_York').isoformat()
-    iso2 = Arrow.strptime(parser.parse(end_time),
+    iso2 = Arrow.fromdatetime(parser.parse(end_time),
                           tzinfo='America/New_York').isoformat()
 
     uri = f'https://api.track.toggl.com/api/v8/time_entries?start_date={iso1}&end_date={iso2}'
